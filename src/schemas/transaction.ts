@@ -2,7 +2,6 @@ import { z } from "zod";
 
 const uuidSchema = z.string().uuid();
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const currencySchema = z.enum(["BRL", "USD"]);
 const transactionTypeSchema = z.enum([
   "CONTRIBUTION",
   "WITHDRAWAL",
@@ -17,8 +16,7 @@ export const createTransactionSchema = z.object({
   date: dateSchema,
   type: transactionTypeSchema,
   amount: z.number().int(),
-  currency: currencySchema,
-  fxRateToBRL: z.number().positive().optional(),
+  fxRateToBRL: z.number().positive().nullish(),
   description: z.string().max(500).optional(),
 });
 export type CreateTransactionBody = z.infer<typeof createTransactionSchema>;
@@ -30,7 +28,7 @@ export const transactionSchema = z.object({
   date: z.string(),
   type: z.string(),
   amount: z.number(),
-  currency: z.string(),
+  currency: z.string().optional(),
   fx_rate_to_brl: z.number().nullable(),
   description: z.string().nullable(),
 });

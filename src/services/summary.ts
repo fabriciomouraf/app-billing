@@ -5,7 +5,7 @@
  * pnlBRL = endValueBRL - startValueBRL - netContributionBRL.
  */
 
-import { amountToBRL, getFxRate, toBRL } from "../lib/fx.js";
+import { getFxRate, toBRL } from "../lib/fx.js";
 
 export interface MonthlySummaryInput {
   startValueBRL: number;
@@ -46,7 +46,7 @@ export async function computeMonthlySummary(
 
     const startSnapshot = await db
       .prepare(
-        "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC LIMIT 1"
+        "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC, created_at DESC LIMIT 1"
       )
       .bind(bucket.id, firstDay)
       .first();
@@ -54,20 +54,11 @@ export async function computeMonthlySummary(
 
     const endSnapshot = await db
       .prepare(
-        "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC LIMIT 1"
+        "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC, created_at DESC LIMIT 1"
       )
       .bind(bucket.id, lastDay)
       .first();
-    let endVal = endSnapshot?.total_value as number | undefined;
-    if (endVal === undefined) {
-      const pos = await db
-        .prepare(
-          "SELECT current_value FROM bucket_positions WHERE bucket_id = ?"
-        )
-        .bind(bucket.id)
-        .first();
-      endVal = (pos?.current_value as number) ?? 0;
-    }
+    const endVal = (endSnapshot?.total_value as number) ?? 0;
 
     const startRate = await getFxRate(db, refCurrency, "BRL", firstDay);
     const endRate = await getFxRate(db, refCurrency, "BRL", lastDay);
@@ -76,39 +67,17 @@ export async function computeMonthlySummary(
     endValueBRL += toBRL(endVal, refCurrency, endRate);
   }
 
-  const transactions = (await db
+  const contribSnapshots = (await db
     .prepare(
-      "SELECT type, amount, currency, fx_rate_to_brl, date FROM transactions WHERE portfolio_id = ? AND date >= ? AND date <= ?"
+      "SELECT s.invested_value_brl FROM bucket_valuation_snapshots s JOIN investment_buckets b ON s.bucket_id = b.id WHERE b.portfolio_id = ? AND s.type IN ('CONTRIBUTION', 'WITHDRAWAL') AND s.date >= ? AND s.date <= ? AND s.invested_value_brl IS NOT NULL"
     )
     .bind(portfolioId, firstDay, lastDay)
-    .all()).results as Array<{
-    type: string;
-    amount: number;
-    currency: string;
-    fx_rate_to_brl: number | null;
-    date: string;
-  }>;
+    .all()).results as Array<{ invested_value_brl: number | null }>;
 
-  let netContributionBRL = 0;
-
-  for (const t of transactions) {
-    const amountBRL = await amountToBRL(
-      db,
-      t.amount,
-      t.currency,
-      t.fx_rate_to_brl,
-      t.date
-    );
-
-    switch (t.type) {
-      case "CONTRIBUTION":
-        netContributionBRL += amountBRL;
-        break;
-      case "WITHDRAWAL":
-        netContributionBRL -= amountBRL;
-        break;
-    }
-  }
+  const netContributionBRL = contribSnapshots.reduce(
+    (sum, s) => sum + ((s.invested_value_brl as number) ?? 0),
+    0
+  );
 
   const pnlBRL = endValueBRL - startValueBRL - netContributionBRL;
 

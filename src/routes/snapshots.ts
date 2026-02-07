@@ -30,11 +30,11 @@ export const snapshotsRoutes = new Hono<Env>()
       let stmt;
       if (from && to) {
         stmt = c.env.DB.prepare(
-          "SELECT id, bucket_id, date, total_value, currency, source FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date >= ? AND date <= ? ORDER BY date DESC"
+          "SELECT id, bucket_id, date, total_value, currency, type, is_initial, invested_value_brl, created_at FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date >= ? AND date <= ? ORDER BY date DESC, created_at DESC"
         ).bind(bucketId, from, to);
       } else {
         stmt = c.env.DB.prepare(
-          "SELECT id, bucket_id, date, total_value, currency, source FROM bucket_valuation_snapshots WHERE bucket_id = ? ORDER BY date DESC"
+          "SELECT id, bucket_id, date, total_value, currency, type, is_initial, invested_value_brl, created_at FROM bucket_valuation_snapshots WHERE bucket_id = ? ORDER BY date DESC, created_at DESC"
         ).bind(bucketId);
       }
       const { results } = await stmt.all();
@@ -49,40 +49,23 @@ export const snapshotsRoutes = new Hono<Env>()
       const { portfolioId, bucketId } = c.req.valid("param");
       const body = c.req.valid("json");
       const bucket = await c.env.DB.prepare(
-        "SELECT id FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
+        "SELECT id, reference_currency FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
       )
         .bind(bucketId, portfolioId)
         .first();
       if (!bucket) throw new HTTPException(404, { message: "Bucket not found" });
+      const currency = body.currency ?? (bucket as { reference_currency: string }).reference_currency;
       const id = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
+      const isInitial = body.isInitial === true ? 1 : 0;
       await c.env.DB.prepare(
-        "INSERT INTO bucket_valuation_snapshots (id, bucket_id, date, total_value, currency, source) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO bucket_valuation_snapshots (id, bucket_id, date, total_value, currency, source, type, is_initial, invested_value_brl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
-        .bind(id, bucketId, body.date, body.totalValue, body.currency, body.source)
+        .bind(id, bucketId, body.date, body.totalValue, currency, "MANUAL", "MANUAL", isInitial, null, createdAt)
         .run();
 
-      const existingPosition = await c.env.DB.prepare(
-        "SELECT invested_value_brl FROM bucket_positions WHERE bucket_id = ?"
-      )
-        .bind(bucketId)
-        .first();
-      const investedValueBRL = (existingPosition?.invested_value_brl as number) ?? 0;
-      if (existingPosition) {
-        await c.env.DB.prepare(
-          "UPDATE bucket_positions SET current_value = ?, updated_at = ? WHERE bucket_id = ?"
-        )
-          .bind(body.totalValue, body.date, bucketId)
-          .run();
-      } else {
-        await c.env.DB.prepare(
-          "INSERT INTO bucket_positions (id, bucket_id, current_value, invested_value_brl, updated_at) VALUES (?, ?, ?, ?, ?)"
-        )
-          .bind(crypto.randomUUID(), bucketId, body.totalValue, investedValueBRL, body.date)
-          .run();
-      }
-
       const row = await c.env.DB.prepare(
-        "SELECT id, bucket_id, date, total_value, currency, source FROM bucket_valuation_snapshots WHERE id = ?"
+        "SELECT id, bucket_id, date, total_value, currency, type, is_initial, invested_value_brl, created_at FROM bucket_valuation_snapshots WHERE id = ?"
       )
         .bind(id)
         .first();

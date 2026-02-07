@@ -22,13 +22,28 @@ export const positionsRoutes = new Hono<Env>()
         .bind(bucketId)
         .first();
       if (!bucket) throw new HTTPException(404, { message: "Bucket not found" });
-      const row = await c.env.DB.prepare(
-        "SELECT id, bucket_id, current_value, invested_value_brl, updated_at, is_initial, initial_value FROM bucket_positions WHERE bucket_id = ?"
+      const latestSnapshot = await c.env.DB.prepare(
+        "SELECT total_value, date FROM bucket_valuation_snapshots WHERE bucket_id = ? ORDER BY date DESC, created_at DESC LIMIT 1"
       )
         .bind(bucketId)
         .first();
-      if (!row) throw new HTTPException(404, { message: "Position not found" });
-      return c.json(row);
+      const contribSnapshots = (await c.env.DB.prepare(
+        "SELECT invested_value_brl FROM bucket_valuation_snapshots WHERE bucket_id = ? AND type IN ('CONTRIBUTION', 'WITHDRAWAL') AND invested_value_brl IS NOT NULL"
+      )
+        .bind(bucketId)
+        .all()).results as Array<{ invested_value_brl: number | null }>;
+      const investedValueBRL = contribSnapshots.reduce(
+        (sum, s) => sum + ((s.invested_value_brl as number) ?? 0),
+        0
+      );
+      const currentValue = (latestSnapshot?.total_value as number) ?? 0;
+      const updatedAt = (latestSnapshot?.date as string) ?? null;
+      return c.json({
+        bucket_id: bucketId,
+        current_value: currentValue,
+        invested_value_brl: investedValueBRL,
+        updated_at: updatedAt,
+      });
     }
   )
   .put(
@@ -39,40 +54,38 @@ export const positionsRoutes = new Hono<Env>()
       const { portfolioId, bucketId } = c.req.valid("param");
       const body = c.req.valid("json");
       const bucket = await c.env.DB.prepare(
-        "SELECT id FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
+        "SELECT id, reference_currency FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
       )
         .bind(bucketId, portfolioId)
         .first();
       if (!bucket) throw new HTTPException(404, { message: "Bucket not found" });
-      const existing = await c.env.DB.prepare(
-        "SELECT id FROM bucket_positions WHERE bucket_id = ?"
-      )
-        .bind(bucketId)
-        .first();
-      const currentValue = body.currentValue;
-      const investedValueBRL = body.investedValueBRL;
-      const updatedAt = body.updatedAt;
+      const refCurrency = (bucket as { reference_currency: string }).reference_currency;
+      const createdAt = new Date().toISOString();
       const isInitial = body.isInitial === true ? 1 : 0;
-      const initialValue = body.isInitial === true ? currentValue : null;
-      if (existing) {
-        await c.env.DB.prepare(
-          "UPDATE bucket_positions SET current_value = ?, invested_value_brl = ?, updated_at = ?, is_initial = ?, initial_value = ? WHERE bucket_id = ?"
-        )
-          .bind(currentValue, investedValueBRL, updatedAt, isInitial, initialValue, bucketId)
-          .run();
-      } else {
-        const id = crypto.randomUUID();
-        await c.env.DB.prepare(
-          "INSERT INTO bucket_positions (id, bucket_id, current_value, invested_value_brl, updated_at, is_initial, initial_value) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        )
-          .bind(id, bucketId, currentValue, investedValueBRL, updatedAt, isInitial, initialValue)
-          .run();
-      }
-      const row = await c.env.DB.prepare(
-        "SELECT id, bucket_id, current_value, invested_value_brl, updated_at, is_initial, initial_value FROM bucket_positions WHERE bucket_id = ?"
+      await c.env.DB.prepare(
+        "INSERT INTO bucket_valuation_snapshots (id, bucket_id, date, total_value, currency, source, type, is_initial, invested_value_brl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+        .bind(crypto.randomUUID(), bucketId, body.updatedAt, body.currentValue, refCurrency, "MANUAL", "MANUAL", isInitial, null, createdAt)
+        .run();
+      const latestSnapshot = await c.env.DB.prepare(
+        "SELECT total_value, date FROM bucket_valuation_snapshots WHERE bucket_id = ? ORDER BY date DESC, created_at DESC LIMIT 1"
       )
         .bind(bucketId)
         .first();
-      return c.json(row!);
+      const contribSnapshots = (await c.env.DB.prepare(
+        "SELECT invested_value_brl FROM bucket_valuation_snapshots WHERE bucket_id = ? AND type IN ('CONTRIBUTION', 'WITHDRAWAL') AND invested_value_brl IS NOT NULL"
+      )
+        .bind(bucketId)
+        .all()).results as Array<{ invested_value_brl: number | null }>;
+      const investedValueBRL = contribSnapshots.reduce(
+        (sum, s) => sum + ((s.invested_value_brl as number) ?? 0),
+        0
+      );
+      return c.json({
+        bucket_id: bucketId,
+        current_value: (latestSnapshot?.total_value as number) ?? body.currentValue,
+        invested_value_brl: investedValueBRL,
+        updated_at: (latestSnapshot?.date as string) ?? body.updatedAt,
+      });
     }
   );

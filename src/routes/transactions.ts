@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Env } from "../lib/env.js";
+import { amountToBRL } from "../lib/fx.js";
 import { createTransactionSchema } from "../schemas/transaction.js";
 
 const transactionsParamsSchema = z.object({
@@ -22,7 +23,7 @@ export const transactionsRoutes = new Hono<Env>()
         .first();
       if (!portfolio) throw new HTTPException(404, { message: "Portfolio not found" });
       const { results } = await c.env.DB.prepare(
-        "SELECT id, portfolio_id, bucket_id, date, type, amount, currency, fx_rate_to_brl, description FROM transactions WHERE portfolio_id = ? ORDER BY date DESC"
+        "SELECT t.id, t.portfolio_id, t.bucket_id, t.date, t.type, t.amount, b.reference_currency as currency, t.fx_rate_to_brl, t.description FROM transactions t JOIN investment_buckets b ON t.bucket_id = b.id WHERE t.portfolio_id = ? ORDER BY t.date DESC"
       )
         .bind(portfolioId)
         .all();
@@ -43,14 +44,14 @@ export const transactionsRoutes = new Hono<Env>()
         .first();
       if (!portfolio) throw new HTTPException(404, { message: "Portfolio not found" });
       const bucket = await c.env.DB.prepare(
-        "SELECT id FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
+        "SELECT id, reference_currency FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
       )
         .bind(body.bucketId, portfolioId)
         .first();
       if (!bucket) throw new HTTPException(400, { message: "Bucket not found in this portfolio" });
       const id = crypto.randomUUID();
       await c.env.DB.prepare(
-        "INSERT INTO transactions (id, portfolio_id, bucket_id, date, type, amount, currency, fx_rate_to_brl, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO transactions (id, portfolio_id, bucket_id, date, type, amount, fx_rate_to_brl, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       )
         .bind(
           id,
@@ -59,14 +60,52 @@ export const transactionsRoutes = new Hono<Env>()
           body.date,
           body.type,
           body.amount,
-          body.currency,
           body.fxRateToBRL ?? null,
           body.description ?? null
         )
         .run();
 
+      if (body.type === "CONTRIBUTION" || body.type === "WITHDRAWAL") {
+        const refCurrency = (bucket as { reference_currency: string }).reference_currency;
+        const amountInBRL = await amountToBRL(
+          c.env.DB,
+          body.amount,
+          refCurrency,
+          body.fxRateToBRL,
+          body.date
+        );
+        const lastSnapshot = await c.env.DB.prepare(
+          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? ORDER BY date DESC, created_at DESC LIMIT 1"
+        )
+          .bind(body.bucketId)
+          .first();
+        const lastTotal = (lastSnapshot?.total_value as number) ?? 0;
+        const newTotal = body.type === "CONTRIBUTION"
+          ? lastTotal + body.amount
+          : lastTotal - body.amount;
+        const investedValueBRL = body.type === "CONTRIBUTION" ? amountInBRL : -amountInBRL;
+        const snapshotCurrency = refCurrency;
+        const snapshotId = crypto.randomUUID();
+        const snapshotCreatedAt = new Date().toISOString();
+        await c.env.DB.prepare(
+          "INSERT INTO bucket_valuation_snapshots (id, bucket_id, date, total_value, currency, source, type, is_initial, invested_value_brl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)"
+        )
+          .bind(
+            snapshotId,
+            body.bucketId,
+            body.date,
+            Math.max(0, newTotal),
+            snapshotCurrency,
+            "TRANSACTION",
+            body.type,
+            investedValueBRL,
+            snapshotCreatedAt
+          )
+          .run();
+      }
+
       const row = await c.env.DB.prepare(
-        "SELECT id, portfolio_id, bucket_id, date, type, amount, currency, fx_rate_to_brl, description FROM transactions WHERE id = ?"
+        "SELECT t.id, t.portfolio_id, t.bucket_id, t.date, t.type, t.amount, b.reference_currency as currency, t.fx_rate_to_brl, t.description FROM transactions t JOIN investment_buckets b ON t.bucket_id = b.id WHERE t.id = ?"
       )
         .bind(id)
         .first();

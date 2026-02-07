@@ -28,7 +28,7 @@ export const pnlRoutes = new Hono<Env>().get(
     const result = await computePnl(bucketId, from, to, {
       getLastSnapshotBefore: async (bid, beforeDate) => {
         const row = await c.env.DB.prepare(
-          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC LIMIT 1"
+          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC, created_at DESC LIMIT 1"
         )
           .bind(bid, beforeDate)
           .first();
@@ -36,27 +36,28 @@ export const pnlRoutes = new Hono<Env>().get(
       },
       getSnapshotAt: async (bid, date) => {
         const row = await c.env.DB.prepare(
-          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC LIMIT 1"
+          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC, created_at DESC LIMIT 1"
         )
           .bind(bid, date)
           .first();
         return row as { total_value: number } | null;
       },
-      getPosition: async (bid) => {
+      getInitialSnapshot: async (bid) => {
         const row = await c.env.DB.prepare(
-          "SELECT current_value, is_initial, initial_value FROM bucket_positions WHERE bucket_id = ?"
+          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND is_initial = 1 ORDER BY date ASC LIMIT 1"
         )
           .bind(bid)
           .first();
-        return row as { current_value: number; is_initial?: number; initial_value?: number | null } | null;
+        return row as { total_value: number } | null;
       },
-      getTransactionsInPeriod: async (bid, fromDate, toDate) => {
+      getNetContributionsInPeriod: async (bid, fromDate, toDate) => {
         const { results } = await c.env.DB.prepare(
-          "SELECT type, amount FROM transactions WHERE bucket_id = ? AND date >= ? AND date <= ?"
+          "SELECT invested_value_brl FROM bucket_valuation_snapshots WHERE bucket_id = ? AND type IN ('CONTRIBUTION', 'WITHDRAWAL') AND date >= ? AND date <= ? AND invested_value_brl IS NOT NULL"
         )
           .bind(bid, fromDate, toDate)
           .all();
-        return results as Array<{ type: string; amount: number }>;
+        const rows = results as Array<{ invested_value_brl: number | null }>;
+        return rows.reduce((sum, r) => sum + ((r.invested_value_brl as number) ?? 0), 0);
       },
     });
 

@@ -4,7 +4,6 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const putPositionSchema = z.object({
   currentValue: z.number().int().min(0),
-  investedValueBRL: z.number().int().min(0),
   updatedAt: dateSchema,
   isInitial: z.boolean().optional(),
 });
