@@ -1,0 +1,320 @@
+{
+    "info": {
+      "name": "app-billing",
+      "description": "API controle de gastos e investimentos - Hono + D1",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+      { "key": "baseUrl", "value": "http://localhost:8787" },
+      { "key": "userId", "value": "" },
+      { "key": "portfolioId", "value": "" },
+      { "key": "bucketId", "value": "" }
+    ],
+    "item": [
+      {
+        "name": "Health",
+        "item": [
+          {
+            "name": "Health check",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/health"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Users",
+        "item": [
+          {
+            "name": "List users",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/users"
+            }
+          },
+          {
+            "name": "Get user by ID",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/users/{{userId}}"
+            }
+          },
+          {
+            "name": "Create user",
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"João\",\n  \"email\": \"joao@example.com\"\n}"
+              },
+              "url": "{{baseUrl}}/api/users"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Portfolios",
+        "item": [
+          {
+            "name": "List portfolios",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/portfolios?userId={{userId}}",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "portfolios"],
+                "query": [{ "key": "userId", "value": "{{userId}}" }]
+              }
+            }
+          },
+          {
+            "name": "Get portfolio by ID",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}"
+            }
+          },
+          {
+            "name": "Create portfolio",
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"Meu portfólio\",\n  \"baseCurrency\": \"BRL\",\n  \"userId\": \"{{userId}}\"\n}"
+              },
+              "url": "{{baseUrl}}/api/portfolios"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Buckets",
+        "item": [
+          {
+            "name": "List buckets",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets"
+            }
+          },
+          {
+            "name": "Get bucket by ID",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}"
+            }
+          },
+          {
+            "name": "Create bucket",
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"type\": \"US_STOCKS\",\n  \"name\": \"Stocks EUA\",\n  \"referenceCurrency\": \"USD\",\n  \"active\": true\n}"
+              },
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets"
+            }
+          },
+          {
+            "name": "Update bucket",
+            "request": {
+              "method": "PATCH",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"Stocks EUA (atualizado)\",\n  \"active\": true\n}"
+              },
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Position",
+        "item": [
+          {
+            "name": "Get position",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}/position"
+            }
+          },
+          {
+            "name": "Put position (upsert)",
+            "request": {
+              "method": "PUT",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"currentValue\": 330000,\n  \"investedValueBRL\": 300000,\n  \"updatedAt\": \"2024-01-15\"\n}"
+              },
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}/position"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Snapshots",
+        "item": [
+          {
+            "name": "List snapshots",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}/snapshots?from=2024-01-01&to=2024-01-31",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "portfolios", "{{portfolioId}}", "buckets", "{{bucketId}}", "snapshots"],
+                "query": [
+                  { "key": "from", "value": "2024-01-01" },
+                  { "key": "to", "value": "2024-01-31" }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Create snapshot",
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"date\": \"2024-01-15\",\n  \"totalValue\": 330000,\n  \"currency\": \"USD\",\n  \"source\": \"MANUAL\"\n}"
+              },
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}/snapshots"
+            }
+          }
+        ]
+      },
+      {
+        "name": "PnL",
+        "item": [
+          {
+            "name": "Get PnL (rendimento no período)",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}/pnl?from=2024-01-01&to=2024-01-31",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "portfolios", "{{portfolioId}}", "buckets", "{{bucketId}}", "pnl"],
+                "query": [
+                  { "key": "from", "value": "2024-01-01" },
+                  { "key": "to", "value": "2024-01-31" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Transactions",
+        "item": [
+          {
+            "name": "List transactions",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/transactions"
+            }
+          },
+          {
+            "name": "Create transaction",
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"bucketId\": \"{{bucketId}}\",\n  \"date\": \"2024-01-10\",\n  \"type\": \"CONTRIBUTION\",\n  \"amount\": 40000,\n  \"currency\": \"BRL\",\n  \"fxRateToBRL\": null,\n  \"description\": \"Aporte mensal\"\n}"
+              },
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/transactions"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Fx-rates",
+        "item": [
+          {
+            "name": "List fx-rates",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/fx-rates?date=2024-01-15&from=USD&to=BRL",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "fx-rates"],
+                "query": [
+                  { "key": "date", "value": "2024-01-15" },
+                  { "key": "from", "value": "USD" },
+                  { "key": "to", "value": "BRL" }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Create fx-rate",
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"date\": \"2024-01-15\",\n  \"from\": \"USD\",\n  \"to\": \"BRL\",\n  \"rate\": 4.95,\n  \"source\": \"MANUAL\"\n}"
+              },
+              "url": "{{baseUrl}}/api/fx-rates"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Summaries",
+        "item": [
+          {
+            "name": "List summaries",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/summaries"
+            }
+          },
+          {
+            "name": "Get summary by month",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/portfolios/{{portfolioId}}/summaries?month=2024-01",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "portfolios", "{{portfolioId}}", "summaries"],
+                "query": [{ "key": "month", "value": "2024-01" }]
+              }
+            }
+          },
+          {
+            "name": "Create summary",
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"month\": \"2024-01\",\n  \"startValueBRL\": 100000,\n  \"endValueBRL\": 110000,\n  \"netContributionBRL\": 5000,\n  \"pnlBRL\": 5000,\n  \"pnlAccumulatedBRL\": 5000\n}"
+              },
+              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/summaries"
+            }
+          }
+        ]
+      }
+    ]
+  }

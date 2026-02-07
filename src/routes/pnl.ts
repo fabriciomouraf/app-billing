@@ -28,7 +28,7 @@ export const pnlRoutes = new Hono<Env>().get(
     const result = await computePnl(bucketId, from, to, {
       getLastSnapshotBefore: async (bid, beforeDate) => {
         const row = await c.env.DB.prepare(
-          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date < ? ORDER BY date DESC LIMIT 1"
+          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC LIMIT 1"
         )
           .bind(bid, beforeDate)
           .first();
@@ -36,7 +36,7 @@ export const pnlRoutes = new Hono<Env>().get(
       },
       getSnapshotAt: async (bid, date) => {
         const row = await c.env.DB.prepare(
-          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date = ?"
+          "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC LIMIT 1"
         )
           .bind(bid, date)
           .first();
@@ -44,11 +44,11 @@ export const pnlRoutes = new Hono<Env>().get(
       },
       getPosition: async (bid) => {
         const row = await c.env.DB.prepare(
-          "SELECT current_value FROM bucket_positions WHERE bucket_id = ?"
+          "SELECT current_value, is_initial, initial_value FROM bucket_positions WHERE bucket_id = ?"
         )
           .bind(bid)
           .first();
-        return row as { current_value: number } | null;
+        return row as { current_value: number; is_initial?: number; initial_value?: number | null } | null;
       },
       getTransactionsInPeriod: async (bid, fromDate, toDate) => {
         const { results } = await c.env.DB.prepare(

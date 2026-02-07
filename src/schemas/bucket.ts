@@ -23,6 +23,7 @@ export type CreateBucketBody = z.infer<typeof createBucketSchema>;
 
 export const updateBucketSchema = z.object({
   name: z.string().min(1).max(200).optional(),
+  referenceCurrency: currencySchema.optional(),
   active: z.boolean().optional(),
 });
 export type UpdateBucketBody = z.infer<typeof updateBucketSchema>;

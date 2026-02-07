@@ -92,6 +92,10 @@ export const bucketsRoutes = new Hono<Env>()
         updates.push("name = ?");
         values.push(body.name);
       }
+      if (body.referenceCurrency !== undefined) {
+        updates.push("reference_currency = ?");
+        values.push(body.referenceCurrency);
+      }
       if (body.active !== undefined) {
         updates.push("active = ?");
         values.push(body.active ? 1 : 0);

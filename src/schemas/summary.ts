@@ -12,8 +12,6 @@ export const createSummarySchema = z.object({
   startValueBRL: z.number().int().min(0),
   endValueBRL: z.number().int().min(0),
   netContributionBRL: z.number().int(),
-  incomeBRL: z.number().int(),
-  feesAndTaxesBRL: z.number().int(),
   pnlBRL: z.number().int(),
   pnlAccumulatedBRL: z.number().int(),
 });
@@ -26,8 +24,6 @@ export const summarySchema = z.object({
   start_value_brl: z.number(),
   end_value_brl: z.number(),
   net_contribution_brl: z.number(),
-  income_brl: z.number(),
-  fees_and_taxes_brl: z.number(),
   pnl_brl: z.number(),
   pnl_accumulated_brl: z.number(),
 });

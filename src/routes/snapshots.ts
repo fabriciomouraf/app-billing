@@ -60,6 +60,27 @@ export const snapshotsRoutes = new Hono<Env>()
       )
         .bind(id, bucketId, body.date, body.totalValue, body.currency, body.source)
         .run();
+
+      const existingPosition = await c.env.DB.prepare(
+        "SELECT invested_value_brl FROM bucket_positions WHERE bucket_id = ?"
+      )
+        .bind(bucketId)
+        .first();
+      const investedValueBRL = (existingPosition?.invested_value_brl as number) ?? 0;
+      if (existingPosition) {
+        await c.env.DB.prepare(
+          "UPDATE bucket_positions SET current_value = ?, updated_at = ? WHERE bucket_id = ?"
+        )
+          .bind(body.totalValue, body.date, bucketId)
+          .run();
+      } else {
+        await c.env.DB.prepare(
+          "INSERT INTO bucket_positions (id, bucket_id, current_value, invested_value_brl, updated_at) VALUES (?, ?, ?, ?, ?)"
+        )
+          .bind(crypto.randomUUID(), bucketId, body.totalValue, investedValueBRL, body.date)
+          .run();
+      }
+
       const row = await c.env.DB.prepare(
         "SELECT id, bucket_id, date, total_value, currency, source FROM bucket_valuation_snapshots WHERE id = ?"
       )

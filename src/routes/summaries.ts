@@ -7,6 +7,7 @@ import {
   listSummariesQuerySchema,
   createSummarySchema,
 } from "../schemas/summary.js";
+import { computeMonthlySummary } from "../services/summary.js";
 
 const summariesParamsSchema = z.object({
   portfolioId: z.string().uuid(),
@@ -26,17 +27,57 @@ export const summariesRoutes = new Hono<Env>()
         .bind(portfolioId)
         .first();
       if (!portfolio) throw new HTTPException(404, { message: "Portfolio not found" });
-      let stmt;
+
       if (month) {
-        stmt = c.env.DB.prepare(
-          "SELECT id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, income_brl, fees_and_taxes_brl, pnl_brl, pnl_accumulated_brl FROM monthly_summaries WHERE portfolio_id = ? AND month = ?"
-        ).bind(portfolioId, month);
-        const row = await stmt.first();
-        if (!row) throw new HTTPException(404, { message: "Summary not found" });
-        return c.json(row);
+        const computed = await computeMonthlySummary(c.env.DB, portfolioId, month);
+        const existing = await c.env.DB.prepare(
+          "SELECT id FROM monthly_summaries WHERE portfolio_id = ? AND month = ?"
+        )
+          .bind(portfolioId, month)
+          .first();
+
+        if (existing) {
+          await c.env.DB.prepare(
+            "UPDATE monthly_summaries SET start_value_brl = ?, end_value_brl = ?, net_contribution_brl = ?, pnl_brl = ?, pnl_accumulated_brl = ? WHERE portfolio_id = ? AND month = ?"
+          )
+            .bind(
+              computed.startValueBRL,
+              computed.endValueBRL,
+              computed.netContributionBRL,
+              computed.pnlBRL,
+              computed.pnlAccumulatedBRL,
+              portfolioId,
+              month
+            )
+            .run();
+        } else {
+          const id = crypto.randomUUID();
+          await c.env.DB.prepare(
+            "INSERT INTO monthly_summaries (id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl, pnl_accumulated_brl) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+          )
+            .bind(
+              id,
+              portfolioId,
+              month,
+              computed.startValueBRL,
+              computed.endValueBRL,
+              computed.netContributionBRL,
+              computed.pnlBRL,
+              computed.pnlAccumulatedBRL
+            )
+            .run();
+        }
+
+        const row = await c.env.DB.prepare(
+          "SELECT id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl, pnl_accumulated_brl FROM monthly_summaries WHERE portfolio_id = ? AND month = ?"
+        )
+          .bind(portfolioId, month)
+          .first();
+        return c.json(row!);
       }
+
       const { results } = await c.env.DB.prepare(
-        "SELECT id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, income_brl, fees_and_taxes_brl, pnl_brl, pnl_accumulated_brl FROM monthly_summaries WHERE portfolio_id = ? ORDER BY month DESC"
+        "SELECT id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl, pnl_accumulated_brl FROM monthly_summaries WHERE portfolio_id = ? ORDER BY month DESC"
       )
         .bind(portfolioId)
         .all();
@@ -58,7 +99,7 @@ export const summariesRoutes = new Hono<Env>()
       if (!portfolio) throw new HTTPException(404, { message: "Portfolio not found" });
       const id = crypto.randomUUID();
       await c.env.DB.prepare(
-        "INSERT INTO monthly_summaries (id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, income_brl, fees_and_taxes_brl, pnl_brl, pnl_accumulated_brl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO monthly_summaries (id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl, pnl_accumulated_brl) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       )
         .bind(
           id,
@@ -67,14 +108,12 @@ export const summariesRoutes = new Hono<Env>()
           body.startValueBRL,
           body.endValueBRL,
           body.netContributionBRL,
-          body.incomeBRL,
-          body.feesAndTaxesBRL,
           body.pnlBRL,
           body.pnlAccumulatedBRL
         )
         .run();
       const row = await c.env.DB.prepare(
-        "SELECT id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, income_brl, fees_and_taxes_brl, pnl_brl, pnl_accumulated_brl FROM monthly_summaries WHERE id = ?"
+        "SELECT id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl, pnl_accumulated_brl FROM monthly_summaries WHERE id = ?"
       )
         .bind(id)
         .first();

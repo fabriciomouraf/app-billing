@@ -64,6 +64,7 @@ export const transactionsRoutes = new Hono<Env>()
           body.description ?? null
         )
         .run();
+
       const row = await c.env.DB.prepare(
         "SELECT id, portfolio_id, bucket_id, date, type, amount, currency, fx_rate_to_brl, description FROM transactions WHERE id = ?"
       )

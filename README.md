@@ -62,6 +62,7 @@ app-billing/
     lib/
       db.ts            # Tipo Bindings (D1)
       env.ts           # Tipo Env
+      fx.ts            # Helpers conversão BRL (getFxRate, amountToBRL, toBRL)
     routes/
       index.ts         # Monta rotas em /api
       users.ts         # /api/users
@@ -95,9 +96,14 @@ O desenho está em [diagram.md](diagram.md) (PlantUML). Resumo:
 | **BucketValuationSnapshot** | Foto do valor total do bucket em uma data |
 | **Transaction** | Aporte, retirada, rendimento, taxa, imposto, ajuste |
 | **FxRateSnapshot** | Câmbio (from/to, rate) em uma data |
-| **MonthlySummary** | Resumo mensal do portfólio (PnL, contribuição, etc.) |
+| **MonthlySummary** | Resumo mensal do portfólio (startValueBRL, endValueBRL, netContributionBRL, pnlBRL, pnlAccumulatedBRL) |
 
 Relações: User → Portfolios; Portfolio → Buckets, Transactions, MonthlySummaries; Bucket → Position (0..1), Snapshots; Transaction → Bucket.
+
+**Fluxo Snapshot e Position:**
+- **POST snapshot** → atualiza position: `current_value` e `updated_at` passam a refletir o valor do snapshot.
+- **POST transaction** (CONTRIBUTION ou WITHDRAWAL) → atualiza position: `invested_value_brl` aumenta (aporte) ou diminui (retirada) pelo valor em BRL.
+- Snapshot = foto do valor de mercado na data. Position = valor atual (`current_value` dos snapshots) e custo (`invested_value_brl` das transactions).
 
 Valores monetários no banco estão em **centavos** (INTEGER). Datas em `YYYY-MM-DD`; mês em `YYYY-MM`.
 
@@ -127,8 +133,8 @@ Base: `/api`. Respostas 4xx via `HTTPException`; 404 = `{ "error": "Not Found" }
 | POST | `/api/portfolios/:portfolioId/transactions` | Cria transação (bucketId, date, type, amount, currency, fxRateToBRL?, description) |
 | GET | `/api/fx-rates?date=&from=&to=` | Lista câmbios (filtros opcionais) |
 | POST | `/api/fx-rates` | Cria fx rate (date, from, to, rate, source) |
-| GET | `/api/portfolios/:portfolioId/summaries?month=` | Lista resumos ou um por mês |
-| POST | `/api/portfolios/:portfolioId/summaries` | Cria resumo mensal (month, startValueBRL, endValueBRL, …) |
+| GET | `/api/portfolios/:portfolioId/summaries?month=` | Lista resumos ou um por mês; **se `month` for informado, sempre recalcula a partir dos dados atuais, salva e retorna** |
+| POST | `/api/portfolios/:portfolioId/summaries` | Cria resumo mensal manual (month, startValueBRL, endValueBRL, netContributionBRL, pnlBRL, pnlAccumulatedBRL) |
 
 **Exemplo de cálculo de rendimento:**  
 `GET /api/portfolios/:portfolioId/buckets/:bucketId/pnl?from=2024-01-01&to=2024-01-31` retorna algo como:

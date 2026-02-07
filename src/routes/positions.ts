@@ -23,7 +23,7 @@ export const positionsRoutes = new Hono<Env>()
         .first();
       if (!bucket) throw new HTTPException(404, { message: "Bucket not found" });
       const row = await c.env.DB.prepare(
-        "SELECT id, bucket_id, current_value, invested_value_brl, updated_at FROM bucket_positions WHERE bucket_id = ?"
+        "SELECT id, bucket_id, current_value, invested_value_brl, updated_at, is_initial, initial_value FROM bucket_positions WHERE bucket_id = ?"
       )
         .bind(bucketId)
         .first();
@@ -52,22 +52,24 @@ export const positionsRoutes = new Hono<Env>()
       const currentValue = body.currentValue;
       const investedValueBRL = body.investedValueBRL;
       const updatedAt = body.updatedAt;
+      const isInitial = body.isInitial === true ? 1 : 0;
+      const initialValue = body.isInitial === true ? currentValue : null;
       if (existing) {
         await c.env.DB.prepare(
-          "UPDATE bucket_positions SET current_value = ?, invested_value_brl = ?, updated_at = ? WHERE bucket_id = ?"
+          "UPDATE bucket_positions SET current_value = ?, invested_value_brl = ?, updated_at = ?, is_initial = ?, initial_value = ? WHERE bucket_id = ?"
         )
-          .bind(currentValue, investedValueBRL, updatedAt, bucketId)
+          .bind(currentValue, investedValueBRL, updatedAt, isInitial, initialValue, bucketId)
           .run();
       } else {
         const id = crypto.randomUUID();
         await c.env.DB.prepare(
-          "INSERT INTO bucket_positions (id, bucket_id, current_value, invested_value_brl, updated_at) VALUES (?, ?, ?, ?, ?)"
+          "INSERT INTO bucket_positions (id, bucket_id, current_value, invested_value_brl, updated_at, is_initial, initial_value) VALUES (?, ?, ?, ?, ?, ?, ?)"
         )
-          .bind(id, bucketId, currentValue, investedValueBRL, updatedAt)
+          .bind(id, bucketId, currentValue, investedValueBRL, updatedAt, isInitial, initialValue)
           .run();
       }
       const row = await c.env.DB.prepare(
-        "SELECT id, bucket_id, current_value, invested_value_brl, updated_at FROM bucket_positions WHERE bucket_id = ?"
+        "SELECT id, bucket_id, current_value, invested_value_brl, updated_at, is_initial, initial_value FROM bucket_positions WHERE bucket_id = ?"
       )
         .bind(bucketId)
         .first();

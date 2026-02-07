@@ -6,6 +6,7 @@ export const putPositionSchema = z.object({
   currentValue: z.number().int().min(0),
   investedValueBRL: z.number().int().min(0),
   updatedAt: dateSchema,
+  isInitial: z.boolean().optional(),
 });
 export type PutPositionBody = z.infer<typeof putPositionSchema>;
 
