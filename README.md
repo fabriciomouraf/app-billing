@@ -113,8 +113,9 @@ Base: `/api`. Respostas 4xx via `HTTPException`; 404 = `{ "error": "Not Found" }
 
 | Método | Path | Descrição |
 |--------|------|-----------|
-| GET | `/api/health` | Health check (sem D1) |
-| GET | `/api/users` | Lista usuários |
+| GET | `/api/health` | Health check (sem D1, público) |
+| POST | `/api/auth/login` | Login (body: email, password) → retorna `{ token }` (público) |
+| GET | `/api/users` | Lista usuários (requer Bearer token) |
 | GET | `/api/users/:id` | Usuário por ID (UUID) |
 | POST | `/api/users` | Cria usuário (body: name, email) |
 | GET | `/api/portfolios?userId=` | Lista portfólios (opcional por userId) |
@@ -160,4 +161,6 @@ Base: `/api`. Respostas 4xx via `HTTPException`; 404 = `{ "error": "Not Found" }
 
 ## Autenticação
 
-Não implementada neste escopo. Para produção, considere adicionar autenticação (ex.: JWT com `bearerAuth` do Hono ou Cloudflare Workers Auth) e validar usuário em rotas sensíveis.
+- **Login:** `POST /api/auth/login` com body `{ "email": "...", "password": "..." }`. Resposta: `200 { "token": "<JWT>" }`. Credenciais inválidas: `401`.
+- **Rotas protegidas:** Todas as rotas exceto `/api/health` e `/api/auth/login` exigem o header `Authorization: Bearer <token>` (JWT obtido no login). Token inválido ou ausente: `401`.
+- **Variável de ambiente:** `JWT_SECRET` deve estar definida (ex.: `wrangler secret put JWT_SECRET` em produção; para dev local, use `wrangler dev --var JWT_SECRET:dev-secret` ou `[vars]` no wrangler.toml com valor de teste).

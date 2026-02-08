@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../lib/env.js";
+import { createAuthMiddleware } from "../middleware/auth.js";
+import { authRoutes } from "./auth.js";
 import { usersRoutes } from "./users.js";
 import { portfoliosRoutes } from "./portfolios.js";
 import { bucketsRoutes } from "./buckets.js";
@@ -12,6 +14,8 @@ import { pnlRoutes } from "./pnl.js";
 
 const api = new Hono<Env>()
   .get("/health", (c) => c.json({ ok: true }))
+  .route("/auth", authRoutes)
+  .use("*", createAuthMiddleware())
   .route("/users", usersRoutes)
   .route("/portfolios", portfoliosRoutes)
   .route("/portfolios/:portfolioId/buckets", bucketsRoutes)

@@ -18,7 +18,7 @@ export const usersRoutes = new Hono<Env>()
       const query = c.req.valid("query");
       if (query?.email) {
         const row = await c.env.DB.prepare(
-          "SELECT id, name, email, password FROM users WHERE email = ?"
+          "SELECT id, name, email FROM users WHERE email = ?"
         )
           .bind(query.email)
           .first();
@@ -27,7 +27,7 @@ export const usersRoutes = new Hono<Env>()
         return c.json(row);
       }
       const { results } = await c.env.DB.prepare(
-        "SELECT id, name, email, password FROM users ORDER BY name"
+        "SELECT id, name, email FROM users ORDER BY name"
       )
         .all();
       return c.json({ users: results });
@@ -39,8 +39,8 @@ export const usersRoutes = new Hono<Env>()
     async (c) => {
       const { id } = c.req.valid("param");
       const row = await c.env.DB.prepare(
-"SELECT id, name, email, password FROM users WHERE id = ?"
-        )
+        "SELECT id, name, email FROM users WHERE id = ?"
+      )
         .bind(id)
         .first();
       if (!row) throw new HTTPException(404, { message: "User not found" });
@@ -57,7 +57,7 @@ export const usersRoutes = new Hono<Env>()
       .bind(id, body.name, body.email, password)
       .run();
     const row = await c.env.DB.prepare(
-      "SELECT id, name, email, password FROM users WHERE id = ?"
+      "SELECT id, name, email FROM users WHERE id = ?"
     )
       .bind(id)
       .first();
