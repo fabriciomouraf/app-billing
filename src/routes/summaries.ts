@@ -61,7 +61,11 @@ export const summariesRoutes = new Hono<Env>()
           .bind(portfolioId, `${year}-%`)
           .first();
         const pnlAccumulatedBRL = (row?.pnl_accumulated_brl as number) ?? 0;
-        return c.json({ year: parseInt(year, 10), pnl_accumulated_brl: pnlAccumulatedBRL });
+        return c.json({
+          year: parseInt(year, 10),
+          pnl_accumulated_brl: pnlAccumulatedBRL,
+          pnl_accumulated_brl_real: pnlAccumulatedBRL / 100,
+        });
       }
 
       if (month) {
@@ -107,7 +111,19 @@ export const summariesRoutes = new Hono<Env>()
         )
           .bind(portfolioId, month)
           .first();
-        return c.json(row!);
+        const startValueBRL = Number(row?.start_value_brl ?? 0);
+        const endValueBRL = Number(row?.end_value_brl ?? 0);
+        const netContributionBRL = Number(row?.net_contribution_brl ?? 0);
+        const pnlBRL = Number(row?.pnl_brl ?? 0);
+        return c.json({
+          ...row,
+          values_brl_real: {
+            start_value: startValueBRL / 100,
+            end_value: endValueBRL / 100,
+            net_contribution: netContributionBRL / 100,
+            pnl: pnlBRL / 100,
+          },
+        });
       }
 
       const { results } = await c.env.DB.prepare(
