@@ -8,10 +8,9 @@ compatibility_date = "2024-11-01"
 # CORS: origens permitidas (separadas por vírgula). Para front na Cloudflare Pages, use a URL do projeto.
 # Ex.: https://app-billing-ui.pages.dev ou https://seu-dominio.com
 [vars]
-CORS_ORIGINS = "http://localhost:3000"
+CORS_ORIGINS = "http://localhost:3000,https://app-billing-ui.fabriciomourafilho.workers.dev"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "app-billing-db"
-# Rode: npx wrangler d1 create app-billing-db  e cole o database_id abaixo para deploy remoto
-database_id = "00000000-0000-0000-0000-000000000001"
+database_id = "3b395a71-86a2-4360-89b8-eeec5aa68eec"
