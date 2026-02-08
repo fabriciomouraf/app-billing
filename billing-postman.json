@@ -150,18 +150,6 @@
               "header": [],
               "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}/position"
             }
-          },
-          {
-            "name": "Put position (upsert)",
-            "request": {
-              "method": "PUT",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": {
-                "mode": "raw",
-                "raw": "{\n  \"currentValue\": 500,\n  \"updatedAt\": \"2026-02-06\",\n  \"isInitial\": true\n}"
-              },
-              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/buckets/{{bucketId}}/position"
-            }
           }
         ]
       },
@@ -313,18 +301,6 @@
                 "path": ["api", "portfolios", "{{portfolioId}}", "summaries"],
                 "query": [{ "key": "year", "value": "2026" }]
               }
-            }
-          },
-          {
-            "name": "Create summary",
-            "request": {
-              "method": "POST",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": {
-                "mode": "raw",
-                "raw": "{\n  \"month\": \"2026-01\",\n  \"startValueBRL\": 100000,\n  \"endValueBRL\": 110000,\n  \"netContributionBRL\": 5000,\n  \"pnlBRL\": 5000\n}"
-              },
-              "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/summaries"
             }
           }
         ]

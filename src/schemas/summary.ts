@@ -10,15 +10,6 @@ export const listSummariesQuerySchema = z.object({
 });
 export type ListSummariesQuery = z.infer<typeof listSummariesQuerySchema>;
 
-export const createSummarySchema = z.object({
-  month: yearMonthSchema,
-  startValueBRL: z.number().int().min(0),
-  endValueBRL: z.number().int().min(0),
-  netContributionBRL: z.number().int(),
-  pnlBRL: z.number().int(),
-});
-export type CreateSummaryBody = z.infer<typeof createSummarySchema>;
-
 export const summarySchema = z.object({
   id: z.string().uuid(),
   portfolio_id: z.string().uuid(),
