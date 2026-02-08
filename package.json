@@ -12,14 +12,14 @@
     "db:migrate:remote": "wrangler d1 migrations apply app-billing-db --remote"
   },
   "dependencies": {
-    "hono": "^4.11.4",
-    "zod": "^4.3.5",
     "@hono/zod-validator": "^0.7.6",
-    "jose": "^5.9.6"
+    "hono": "^4.11.4",
+    "jose": "^5.9.6",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
     "typescript": "^5.9.0",
-    "wrangler": "^3.99.0"
+    "wrangler": "^3.114.17"
   }
 }
