@@ -7,6 +7,7 @@
     "variable": [
       { "key": "baseUrl", "value": "http://localhost:8787" },
       { "key": "userId", "value": "" },
+      { "key": "email", "value": "joao@example.com" },
       { "key": "portfolioId", "value": "" },
       { "key": "bucketId", "value": "" }
     ],
@@ -41,6 +42,19 @@
               "method": "GET",
               "header": [],
               "url": "{{baseUrl}}/api/users/{{userId}}"
+            }
+          },
+          {
+            "name": "Get user by email",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/users?email={{email}}",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "users"],
+                "query": [{ "key": "email", "value": "{{email}}" }]
+              }
             }
           },
           {
