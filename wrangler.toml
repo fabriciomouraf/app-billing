@@ -5,6 +5,11 @@ compatibility_date = "2024-11-01"
 # JWT_SECRET: em dev local é lido de .dev.vars (não commitado).
 # Em produção: wrangler secret put JWT_SECRET
 
+# CORS: origens permitidas (separadas por vírgula). Para front na Cloudflare Pages, use a URL do projeto.
+# Ex.: https://app-billing-ui.pages.dev ou https://seu-dominio.com
+[vars]
+CORS_ORIGINS = "http://localhost:3000"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "app-billing-db"
