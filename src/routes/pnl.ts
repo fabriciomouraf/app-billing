@@ -19,11 +19,12 @@ export const pnlRoutes = new Hono<Env>().get(
     const { portfolioId, bucketId } = c.req.valid("param");
     const { from, to } = c.req.valid("query");
     const bucket = await c.env.DB.prepare(
-      "SELECT id FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
+      "SELECT id, reference_currency FROM investment_buckets WHERE id = ? AND portfolio_id = ?"
     )
       .bind(bucketId, portfolioId)
       .first();
     if (!bucket) throw new HTTPException(404, { message: "Bucket not found" });
+    const bucketCurrency = (bucket as { reference_currency: string }).reference_currency;
 
     const result = await computePnl(bucketId, from, to, {
       getLastSnapshotBefore: async (bid, beforeDate) => {
@@ -51,6 +52,14 @@ export const pnlRoutes = new Hono<Env>().get(
         return row as { total_value: number } | null;
       },
       getNetContributionsInPeriod: async (bid, fromDate, toDate) => {
+        if (bucketCurrency !== "BRL") {
+          const row = await c.env.DB.prepare(
+            "SELECT SUM(CASE WHEN type = 'CONTRIBUTION' THEN amount WHEN type = 'WITHDRAWAL' THEN -amount ELSE 0 END) AS total FROM transactions WHERE bucket_id = ? AND date >= ? AND date <= ? AND type IN ('CONTRIBUTION', 'WITHDRAWAL')"
+          )
+            .bind(bid, fromDate, toDate)
+            .first();
+          return (row?.total as number | null) ?? 0;
+        }
         const { results } = await c.env.DB.prepare(
           "SELECT invested_value_brl FROM bucket_valuation_snapshots WHERE bucket_id = ? AND type IN ('CONTRIBUTION', 'WITHDRAWAL') AND date >= ? AND date <= ? AND invested_value_brl IS NOT NULL"
         )

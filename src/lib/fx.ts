@@ -18,6 +18,19 @@ export async function getFxRate(
   return (row?.rate as number) ?? 1;
 }
 
+export async function getFxRateById(
+  db: D1Database,
+  id: string
+): Promise<{ id: string; from_currency: string; to_currency: string; rate: number } | null> {
+  const row = await db
+    .prepare(
+      "SELECT id, from_currency, to_currency, rate FROM fx_rate_snapshots WHERE id = ?"
+    )
+    .bind(id)
+    .first();
+  return (row as { id: string; from_currency: string; to_currency: string; rate: number }) ?? null;
+}
+
 /**
  * Converte valor (centavos) para BRL.
  * - Se currency BRL: retorna amount.

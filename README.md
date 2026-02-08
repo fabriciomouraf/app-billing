@@ -130,7 +130,7 @@ Base: `/api`. Respostas 4xx via `HTTPException`; 404 = `{ "error": "Not Found" }
 | POST | `/api/portfolios/:portfolioId/buckets/:bucketId/snapshots` | Cria snapshot (date, totalValue, currency, source) |
 | GET | `/api/portfolios/:portfolioId/buckets/:bucketId/pnl?from=&to=` | **Rendimento** no período (pnl, startValue, endValue, netContributions) |
 | GET | `/api/portfolios/:portfolioId/transactions` | Lista transações |
-| POST | `/api/portfolios/:portfolioId/transactions` | Cria transação (bucketId, date, type, amount, currency, fxRateToBRL?, description) |
+| POST | `/api/portfolios/:portfolioId/transactions` | Cria transação (bucketId, date, type, amount, currency, fxRateId?, description) |
 | GET | `/api/fx-rates?date=&from=&to=` | Lista câmbios (filtros opcionais) |
 | POST | `/api/fx-rates` | Cria fx rate (date, from, to, rate, source) |
 | GET | `/api/portfolios/:portfolioId/summaries?month=` | Lista resumos ou um por mês; **se `month` for informado, sempre recalcula a partir dos dados atuais, salva e retorna** |

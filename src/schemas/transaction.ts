@@ -10,13 +10,15 @@ const transactionTypeSchema = z.enum([
   "TAX",
   "ADJUSTMENT",
 ]);
+const currencySchema = z.enum(["BRL", "USD"]);
 
 export const createTransactionSchema = z.object({
   bucketId: uuidSchema,
   date: dateSchema,
   type: transactionTypeSchema,
   amount: z.number().int(),
-  fxRateToBRL: z.number().positive().nullish(),
+  currency: currencySchema,
+  fxRateId: uuidSchema.nullish(),
   description: z.string().max(500).optional(),
 });
 export type CreateTransactionBody = z.infer<typeof createTransactionSchema>;
@@ -28,8 +30,8 @@ export const transactionSchema = z.object({
   date: z.string(),
   type: z.string(),
   amount: z.number(),
-  currency: z.string().optional(),
-  fx_rate_to_brl: z.number().nullable(),
+  currency: z.string(),
+  fx_rate_id: z.string().uuid().nullable(),
   description: z.string().nullable(),
 });
 export type Transaction = z.infer<typeof transactionSchema>;

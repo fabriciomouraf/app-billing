@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Env } from "../lib/env.js";
-import { amountToBRL } from "../lib/fx.js";
+import { getFxRateById, toBRL } from "../lib/fx.js";
 import { createTransactionSchema } from "../schemas/transaction.js";
 
 const transactionsParamsSchema = z.object({
@@ -23,7 +23,7 @@ export const transactionsRoutes = new Hono<Env>()
         .first();
       if (!portfolio) throw new HTTPException(404, { message: "Portfolio not found" });
       const { results } = await c.env.DB.prepare(
-        "SELECT t.id, t.portfolio_id, t.bucket_id, t.date, t.type, t.amount, b.reference_currency as currency, t.fx_rate_to_brl, t.description FROM transactions t JOIN investment_buckets b ON t.bucket_id = b.id WHERE t.portfolio_id = ? ORDER BY t.date DESC"
+        "SELECT id, portfolio_id, bucket_id, date, type, amount, currency, fx_rate_id, description FROM transactions WHERE portfolio_id = ? ORDER BY date DESC"
       )
         .bind(portfolioId)
         .all();
@@ -49,9 +49,32 @@ export const transactionsRoutes = new Hono<Env>()
         .bind(body.bucketId, portfolioId)
         .first();
       if (!bucket) throw new HTTPException(400, { message: "Bucket not found in this portfolio" });
+      const refCurrency = (bucket as { reference_currency: string }).reference_currency;
+      if (body.currency !== refCurrency) {
+        throw new HTTPException(400, { message: "Transaction currency must match bucket currency" });
+      }
+      if (body.currency === "BRL" && body.fxRateId) {
+        throw new HTTPException(400, { message: "fxRateId is only allowed for non-BRL transactions" });
+      }
+      let fxRateSnapshot: { rate: number; from_currency: string; to_currency: string } | null = null;
+      if (body.currency !== "BRL") {
+        if (!body.fxRateId) {
+          throw new HTTPException(400, { message: "fxRateId is required for non-BRL transactions" });
+        }
+        fxRateSnapshot = await getFxRateById(c.env.DB, body.fxRateId);
+        if (!fxRateSnapshot) {
+          throw new HTTPException(400, { message: "fxRateId not found" });
+        }
+        if (
+          fxRateSnapshot.from_currency !== body.currency ||
+          fxRateSnapshot.to_currency !== "BRL"
+        ) {
+          throw new HTTPException(400, { message: "fxRateId currency mismatch" });
+        }
+      }
       const id = crypto.randomUUID();
       await c.env.DB.prepare(
-        "INSERT INTO transactions (id, portfolio_id, bucket_id, date, type, amount, fx_rate_to_brl, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO transactions (id, portfolio_id, bucket_id, date, type, amount, currency, fx_rate_id, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
         .bind(
           id,
@@ -60,20 +83,17 @@ export const transactionsRoutes = new Hono<Env>()
           body.date,
           body.type,
           body.amount,
-          body.fxRateToBRL ?? null,
+          body.currency,
+          body.fxRateId ?? null,
           body.description ?? null
         )
         .run();
 
       if (body.type === "CONTRIBUTION" || body.type === "WITHDRAWAL") {
-        const refCurrency = (bucket as { reference_currency: string }).reference_currency;
-        const amountInBRL = await amountToBRL(
-          c.env.DB,
-          body.amount,
-          refCurrency,
-          body.fxRateToBRL,
-          body.date
-        );
+        const amountInBRL =
+          body.currency === "BRL"
+            ? body.amount
+            : toBRL(body.amount, body.currency, fxRateSnapshot!.rate);
         const lastSnapshot = await c.env.DB.prepare(
           "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? ORDER BY date DESC, created_at DESC LIMIT 1"
         )
@@ -105,7 +125,7 @@ export const transactionsRoutes = new Hono<Env>()
       }
 
       const row = await c.env.DB.prepare(
-        "SELECT t.id, t.portfolio_id, t.bucket_id, t.date, t.type, t.amount, b.reference_currency as currency, t.fx_rate_to_brl, t.description FROM transactions t JOIN investment_buckets b ON t.bucket_id = b.id WHERE t.id = ?"
+        "SELECT id, portfolio_id, bucket_id, date, type, amount, currency, fx_rate_id, description FROM transactions WHERE id = ?"
       )
         .bind(id)
         .first();

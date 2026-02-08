@@ -54,7 +54,11 @@ export const snapshotsRoutes = new Hono<Env>()
         .bind(bucketId, portfolioId)
         .first();
       if (!bucket) throw new HTTPException(404, { message: "Bucket not found" });
-      const currency = body.currency ?? (bucket as { reference_currency: string }).reference_currency;
+      const refCurrency = (bucket as { reference_currency: string }).reference_currency;
+      if (body.currency && body.currency !== refCurrency) {
+        throw new HTTPException(400, { message: "Snapshot currency must match bucket currency" });
+      }
+      const currency = body.currency ?? refCurrency;
       const id = crypto.randomUUID();
       const createdAt = new Date().toISOString();
       const isInitial = body.isInitial === true ? 1 : 0;

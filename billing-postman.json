@@ -237,7 +237,7 @@
               "header": [{ "key": "Content-Type", "value": "application/json" }],
               "body": {
                 "mode": "raw",
-                "raw": "{\n  \"bucketId\": \"{{bucketId}}\",\n  \"date\": \"2026-02-10\",\n  \"type\": \"CONTRIBUTION\",\n  \"amount\": 200,\n  \"fxRateToBRL\": null,\n  \"description\": \"Aporte semanal\"\n}"
+                "raw": "{\n  \"bucketId\": \"{{bucketId}}\",\n  \"date\": \"2026-02-10\",\n  \"type\": \"CONTRIBUTION\",\n  \"amount\": 200,\n  \"currency\": \"USD\",\n  \"fxRateId\": \"{{fxRateId}}\",\n  \"description\": \"Aporte semanal\"\n}"
               },
               "url": "{{baseUrl}}/api/portfolios/{{portfolioId}}/transactions"
             }

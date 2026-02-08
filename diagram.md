@@ -62,7 +62,7 @@ class Transaction {
   +TransactionType type
   +Decimal amount
   +Currency currency
-  +Decimal fxRateToBRL      ' opcional (travar câmbio)
+  +UUID fxRateId            ' opcional (referência em fx_rate_snapshots)
   +String description
   --
   +Decimal amountInBRL()
