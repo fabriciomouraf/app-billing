@@ -12,7 +12,6 @@ export interface MonthlySummaryInput {
   endValueBRL: number;
   netContributionBRL: number;
   pnlBRL: number;
-  pnlAccumulatedBRL: number;
 }
 
 function getLastDayOfMonth(year: number, month: number): string {
@@ -44,13 +43,25 @@ export async function computeMonthlySummary(
   for (const bucket of buckets) {
     const refCurrency = bucket.reference_currency;
 
-    const startSnapshot = await db
+    let startSnapshot = await db
       .prepare(
-        "SELECT total_value FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC, created_at DESC LIMIT 1"
+        "SELECT total_value, date FROM bucket_valuation_snapshots WHERE bucket_id = ? AND date <= ? ORDER BY date DESC, created_at DESC LIMIT 1"
       )
       .bind(bucket.id, firstDay)
       .first();
-    const startVal = (startSnapshot?.total_value as number) ?? 0;
+    let startVal = (startSnapshot?.total_value as number) ?? 0;
+    if (startVal === 0) {
+      const initialSnapshot = await db
+        .prepare(
+          "SELECT total_value, date FROM bucket_valuation_snapshots WHERE bucket_id = ? AND is_initial = 1 ORDER BY date ASC LIMIT 1"
+        )
+        .bind(bucket.id)
+        .first();
+      startVal = (initialSnapshot?.total_value as number) ?? 0;
+      startSnapshot = initialSnapshot;
+    }
+    const startSnapshotDate = (startSnapshot?.date as string) ?? firstDay;
+    const startRate = await getFxRate(db, refCurrency, "BRL", startSnapshotDate);
 
     const endSnapshot = await db
       .prepare(
@@ -60,7 +71,6 @@ export async function computeMonthlySummary(
       .first();
     const endVal = (endSnapshot?.total_value as number) ?? 0;
 
-    const startRate = await getFxRate(db, refCurrency, "BRL", firstDay);
     const endRate = await getFxRate(db, refCurrency, "BRL", lastDay);
 
     startValueBRL += toBRL(startVal, refCurrency, startRate);
@@ -81,20 +91,10 @@ export async function computeMonthlySummary(
 
   const pnlBRL = endValueBRL - startValueBRL - netContributionBRL;
 
-  const previousSummaries = (await db
-    .prepare(
-      "SELECT pnl_brl FROM monthly_summaries WHERE portfolio_id = ? AND month < ? ORDER BY month"
-    )
-    .bind(portfolioId, month)
-    .all()).results as Array<{ pnl_brl: number }>;
-  const pnlAccumulatedBRL =
-    previousSummaries.reduce((acc, s) => acc + s.pnl_brl, 0) + pnlBRL;
-
   return {
     startValueBRL,
     endValueBRL,
     netContributionBRL,
     pnlBRL,
-    pnlAccumulatedBRL,
   };
 }
