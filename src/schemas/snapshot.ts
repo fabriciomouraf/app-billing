@@ -14,7 +14,6 @@ export const createSnapshotSchema = z.object({
   date: dateSchema,
   totalValue: z.number().int().min(0),
   currency: currencySchema.optional(),
-  isInitial: z.boolean().optional(),
 });
 export type CreateSnapshotBody = z.infer<typeof createSnapshotSchema>;
 

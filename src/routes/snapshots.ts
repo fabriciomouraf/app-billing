@@ -61,7 +61,13 @@ export const snapshotsRoutes = new Hono<Env>()
       const currency = body.currency ?? refCurrency;
       const id = crypto.randomUUID();
       const createdAt = new Date().toISOString();
-      const isInitial = body.isInitial === true ? 1 : 0;
+      const countResult = await c.env.DB.prepare(
+        "SELECT COUNT(*) as count FROM bucket_valuation_snapshots WHERE bucket_id = ?"
+      )
+        .bind(bucketId)
+        .first();
+      const isFirstSnapshot = ((countResult?.count as number) ?? 0) === 0;
+      const isInitial = isFirstSnapshot ? 1 : 0;
       await c.env.DB.prepare(
         "INSERT INTO bucket_valuation_snapshots (id, bucket_id, date, total_value, currency, source, type, is_initial, invested_value_brl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
