@@ -30,6 +30,22 @@ export async function computeMonthlySummary(
   const firstDay = `${year}-${monthStr}-01`;
   const lastDay = getLastDayOfMonth(year, monthNum);
 
+  const earliestSnapshot = await db
+    .prepare(
+      "SELECT MIN(s.date) as first_date FROM bucket_valuation_snapshots s JOIN investment_buckets b ON s.bucket_id = b.id WHERE b.portfolio_id = ?"
+    )
+    .bind(portfolioId)
+    .first();
+  const earliestDate = (earliestSnapshot?.first_date as string | null) ?? null;
+  if (earliestDate && lastDay < earliestDate) {
+    return {
+      startValueBRL: 0,
+      endValueBRL: 0,
+      netContributionBRL: 0,
+      pnlBRL: 0,
+    };
+  }
+
   const buckets = (await db
     .prepare(
       "SELECT id, reference_currency FROM investment_buckets WHERE portfolio_id = ? AND active = 1"
