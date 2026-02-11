@@ -9,7 +9,9 @@
     "deploy": "wrangler deploy",
     "db:generate": "wrangler d1 migrations create",
     "db:migrate:local": "wrangler d1 migrations apply app-billing-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply app-billing-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply app-billing-db --remote",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
@@ -20,6 +22,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
     "typescript": "^5.9.0",
+    "vitest": "^4.0.18",
     "wrangler": "^3.114.17"
   }
 }
