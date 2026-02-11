@@ -11,11 +11,26 @@ export async function getFxRate(
   if (from === to) return 1;
   const row = await db
     .prepare(
-      "SELECT rate FROM fx_rate_snapshots WHERE from_currency = ? AND to_currency = ? AND date <= ? ORDER BY date DESC LIMIT 1"
+      "SELECT rate, date as snapshot_date FROM fx_rate_snapshots WHERE from_currency = ? AND to_currency = ? AND date <= ? ORDER BY date DESC LIMIT 1"
     )
     .bind(from, to, onOrBeforeDate)
-    .first();
-  return (row?.rate as number) ?? 1;
+    .first() as { rate: number; snapshot_date: string } | null;
+  const rate = (row?.rate as number) ?? 1;
+  const snapshotDateUsed = row?.snapshot_date ?? null;
+  // #region agent log
+  fetch("http://127.0.0.1:7243/ingest/4bd473d5-7d31-4c8f-bcb4-8014a9bca7af", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "fx.ts:getFxRate",
+      message: "getFxRate result",
+      data: { onOrBeforeDate, from, to, rate, snapshotDateUsed },
+      timestamp: Date.now(),
+      hypothesisId: "H1",
+    }),
+  }).catch(() => {});
+  // #endregion
+  return rate;
 }
 
 export async function getFxRateById(

@@ -10,6 +10,14 @@ const summariesParamsSchema = z.object({
   portfolioId: z.string().uuid(),
 });
 
+/** Mês atual no formato YYYY-MM. Apenas o mês atual é recalculado; passados ficam congelados e futuros ficam zerados. */
+function getCurrentMonthStr(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
 export const summariesRoutes = new Hono<Env>()
   .get(
     "/",
@@ -25,10 +33,15 @@ export const summariesRoutes = new Hono<Env>()
         .first();
       if (!portfolio) throw new HTTPException(404, { message: "Portfolio not found" });
 
+      const currentMonthStr = getCurrentMonthStr();
+
       if (year) {
         const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
         for (const m of months) {
           const monthStr = `${year}-${m}`;
+          // Só recalcula o mês atual. Passados ficam congelados; futuros não são calculados (ficam zerados).
+          if (monthStr !== currentMonthStr) continue;
+
           const computed = await computeMonthlySummary(c.env.DB, portfolioId, monthStr);
           const existing = await c.env.DB.prepare(
             "SELECT id FROM monthly_summaries WHERE portfolio_id = ? AND month = ?"
@@ -66,41 +79,66 @@ export const summariesRoutes = new Hono<Env>()
       }
 
       if (month) {
-        const computed = await computeMonthlySummary(c.env.DB, portfolioId, month);
-        const existing = await c.env.DB.prepare(
-          "SELECT id FROM monthly_summaries WHERE portfolio_id = ? AND month = ?"
-        )
-          .bind(portfolioId, month)
-          .first();
+        // Só recalcula se for o mês atual. Passado = só lê do banco; futuro = só lê (ou zeros).
+        if (month === currentMonthStr) {
+          const computed = await computeMonthlySummary(c.env.DB, portfolioId, month);
+          const existing = await c.env.DB.prepare(
+            "SELECT id FROM monthly_summaries WHERE portfolio_id = ? AND month = ?"
+          )
+            .bind(portfolioId, month)
+            .first();
 
-        if (existing) {
-          await c.env.DB.prepare(
-            "UPDATE monthly_summaries SET start_value_brl = ?, end_value_brl = ?, net_contribution_brl = ?, pnl_brl = ? WHERE portfolio_id = ? AND month = ?"
-          )
-            .bind(
-              computed.startValueBRL,
-              computed.endValueBRL,
-              computed.netContributionBRL,
-              computed.pnlBRL,
-              portfolioId,
-              month
+          if (existing) {
+            await c.env.DB.prepare(
+              "UPDATE monthly_summaries SET start_value_brl = ?, end_value_brl = ?, net_contribution_brl = ?, pnl_brl = ? WHERE portfolio_id = ? AND month = ?"
             )
-            .run();
-        } else {
-          const id = crypto.randomUUID();
-          await c.env.DB.prepare(
-            "INSERT INTO monthly_summaries (id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl) VALUES (?, ?, ?, ?, ?, ?, ?)"
-          )
-            .bind(
-              id,
-              portfolioId,
-              month,
-              computed.startValueBRL,
-              computed.endValueBRL,
-              computed.netContributionBRL,
-              computed.pnlBRL
+              .bind(
+                computed.startValueBRL,
+                computed.endValueBRL,
+                computed.netContributionBRL,
+                computed.pnlBRL,
+                portfolioId,
+                month
+              )
+              .run();
+          } else {
+            const id = crypto.randomUUID();
+            await c.env.DB.prepare(
+              "INSERT INTO monthly_summaries (id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl) VALUES (?, ?, ?, ?, ?, ?, ?)"
             )
-            .run();
+              .bind(
+                id,
+                portfolioId,
+                month,
+                computed.startValueBRL,
+                computed.endValueBRL,
+                computed.netContributionBRL,
+                computed.pnlBRL
+              )
+              .run();
+          }
+        } else if (month > currentMonthStr) {
+          // Mês futuro: zera e persiste no banco para sempre vir zerado.
+          const existing = await c.env.DB.prepare(
+            "SELECT id FROM monthly_summaries WHERE portfolio_id = ? AND month = ?"
+          )
+            .bind(portfolioId, month)
+            .first();
+
+          if (existing) {
+            await c.env.DB.prepare(
+              "UPDATE monthly_summaries SET start_value_brl = 0, end_value_brl = 0, net_contribution_brl = 0, pnl_brl = 0 WHERE portfolio_id = ? AND month = ?"
+            )
+              .bind(portfolioId, month)
+              .run();
+          } else {
+            const id = crypto.randomUUID();
+            await c.env.DB.prepare(
+              "INSERT INTO monthly_summaries (id, portfolio_id, month, start_value_brl, end_value_brl, net_contribution_brl, pnl_brl) VALUES (?, ?, ?, 0, 0, 0, 0)"
+            )
+              .bind(id, portfolioId, month)
+              .run();
+          }
         }
 
         const row = await c.env.DB.prepare(

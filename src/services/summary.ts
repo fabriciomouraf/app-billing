@@ -89,6 +89,31 @@ export async function computeMonthlySummary(
 
     const endRate = await getFxRate(db, refCurrency, "BRL", lastDay);
 
+    // #region agent log
+    fetch("http://127.0.0.1:7243/ingest/4bd473d5-7d31-4c8f-bcb4-8014a9bca7af", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "summary.ts:bucket rates",
+        message: "bucket start/end rates and values",
+        data: {
+          month,
+          bucketId: bucket.id,
+          startSnapshotDate,
+          lastDay,
+          startRate,
+          endRate,
+          startVal,
+          endVal,
+          startValueBRLBucket: toBRL(startVal, refCurrency, startRate),
+          endValueBRLBucket: toBRL(endVal, refCurrency, endRate),
+        },
+        timestamp: Date.now(),
+        hypothesisId: "H1",
+      }),
+    }).catch(() => {});
+    // #endregion
+
     startValueBRL += toBRL(startVal, refCurrency, startRate);
     endValueBRL += toBRL(endVal, refCurrency, endRate);
   }
@@ -106,6 +131,28 @@ export async function computeMonthlySummary(
   );
 
   const pnlBRL = endValueBRL - startValueBRL - netContributionBRL;
+
+  // #region agent log
+  fetch("http://127.0.0.1:7243/ingest/4bd473d5-7d31-4c8f-bcb4-8014a9bca7af", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "summary.ts:computeMonthlySummary",
+      message: "monthly summary computed",
+      data: {
+        month,
+        firstDay,
+        lastDay,
+        startValueBRL,
+        endValueBRL,
+        netContributionBRL,
+        pnlBRL,
+      },
+      timestamp: Date.now(),
+      hypothesisId: "H2",
+    }),
+  }).catch(() => {});
+  // #endregion
 
   return {
     startValueBRL,
